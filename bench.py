@@ -41,6 +41,26 @@ def time_cholesky(N=100, trials=3, dtype=np.double):
         gc.enable()
     return toc/trials, N*N*N/3.0*1e-9
 
+def time_svd(N=100, trials=3, dtype=np.double):
+    np.random.seed(0)
+
+    # try a few M, that depend on N
+    scales = [0.5, 1, 2, 5]
+    acc = 0
+    for scal in scales:
+        M = int(N * scal)
+        A = np.asarray(np.random.rand(M, N), dtype=dtype)
+        gcold = gc.isenabled()
+        gc.disable()
+        tic = time.time()
+        for i in range(trials):
+            u, s, vt = np.linalg.svd(A)
+        toc = time.time()-tic
+        acc += toc
+        if gcold:
+            gc.enable()
+    # complexity estimate is v. crude and assumes all sort of things!
+    return acc/trials, min(N*M*M, M*N*N)*1e-9
 
 def time_numexpr(N=100, trials=3, dtype=np.double):
     # these are used, despite what a linter may say.  Numexpr uses them
@@ -84,6 +104,8 @@ def test_timers():
     print("DGEMM   : N: %d s: %e GFLOP/s: %e" % (N, s, gflop/s))
     s, gflop = time_cholesky(N, trials, dtype)
     print("Cholesky: N: %d s: %e GFLOP/s: %e" % (N, s, gflop/s))
+    s, gflop = time_svd(N, trials, dtype)
+    print("SVD     : N: %d s: %e GFLOP/s: %e" % (N, s, gflop/s))
     s, gbyte = time_numexpr(50000, trials, dtype)
     print("NumExpr : N: %d s: %e GBytes/s: %e" % (N, s, gbyte/s))
     s, gflop = time_fft(512, trials, dtype)
@@ -136,6 +158,10 @@ if __name__ == '__main__':
     print('benchmarking Cholesky')
     cholesky_data = bench(time_cholesky, Ns, trials, dtype)
     dump_data(cholesky_data, data_dir, backend, 'Cholesky')
+
+    print('benchmarking SVD')
+    svd_data = bench(time_svd, Ns, trials, dtype)
+    dump_data(svd_data, data_dir, backend, 'SVD')
 
     print('benchmarking NumExpr')
     logNs = np.arange(12, 18.5, 0.5)  # uncomment to run big tests
